@@ -134,18 +134,21 @@ class MPNEncoder(nn.Module):
                 cur_hiddens = atom_hiddens.narrow(0, a_start, a_size)
                 mol_vec = cur_hiddens  # (num_atoms, hidden_size)
 
-                mol_vec = mol_vec.sum(dim=0) / a_size
-                mol_vecs.append(mol_vec)
+                # mol_vec = mol_vec.sum(dim=0) / a_size
+                # padding?
+                print('mol_vec_notsum'+'\n', mol_vec)  # check vector
+                print('mol_vec_shpae', mol_vec.shape)  #  check vector shape
+                mol_vecs.append(mol_vec) 
 
-        mol_vecs = torch.stack(mol_vecs, dim=0)  # (num_molecules, hidden_size)
+        mol_vecs = torch.stack(mol_vecs, dim=0)  # (num_molecules, num_atoms, hidden_size)
         
         if self.use_input_features:
             features_batch = features_batch.to(mol_vecs)
             if len(features_batch.shape) == 1:
                 features_batch = features_batch.view([1,features_batch.shape[0]])
-            mol_vecs = torch.cat([mol_vecs, features_batch], dim=1)  # (num_molecules, hidden_size)
+            mol_vecs = torch.cat([mol_vecs, features_batch], dim=1)  # (num_molecules, num_atoms,  hidden_size)
 
-        return mol_vecs  # num_molecules x hidden
+        return mol_vecs  # num_molecules x num_atoms x hidden
 
 
 class MPN(nn.Module):
@@ -179,7 +182,7 @@ class MPN(nn.Module):
 
         :param batch: A list of SMILES strings or a BatchMolGraph (if self.graph_input is True).
         :param features_batch: A list of ndarrays containing additional features.
-        :return: A PyTorch tensor of shape (num_molecules, hidden_size) containing the encoding of each molecule.
+        :return: A PyTorch tensor of shape (num_molecules, num_atoms, hidden_size) containing the encoding of each molecule.
         """
         if not self.graph_input:  # if features only, batch won't even be used
             batch = mol2graph(batch, self.args)
@@ -187,3 +190,5 @@ class MPN(nn.Module):
         output = self.encoder.forward(batch, features_batch)
 
         return output
+
+

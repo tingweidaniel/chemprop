@@ -1,6 +1,7 @@
 from argparse import Namespace
 
 import torch.nn as nn
+import torch
 
 from .mpn import MPN
 from chemprop.nn_utils import get_activation_function, initialize_weights
@@ -73,6 +74,7 @@ class MoleculeModel(nn.Module):
                 activation,
                 dropout,
                 nn.Linear(args.ffn_hidden_size, args.output_size),
+                LambdaLayer(lambda x: torch.sum(x, 1))  # sum up each atom contribution, shape = (num_molecules, output_size)
             ])
 
         # Create FFN model
@@ -117,3 +119,12 @@ def build_model(args: Namespace) -> nn.Module:
     initialize_weights(model)
 
     return model
+
+class LambdaLayer(nn.Module):
+    def __init__(self, lambd):
+        super(LambdaLayer, self).__init__()
+        self.lambd = lambd
+    def forward(self, x):
+        return self.lambd(x)
+
+
