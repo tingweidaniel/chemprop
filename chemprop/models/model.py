@@ -57,24 +57,24 @@ class MoleculeModel(nn.Module):
         if args.ffn_num_layers == 1:
             ffn = [
                 TimeDistributed_wrapper(dropout),
-                TimeDistributed_wrapper(nn.Linear(first_linear_dim, args.output_size))
+                TimeDistributed_wrapper(nn.Linear(first_linear_dim, args.output_size, bias=False))
             ]
         else:
             ffn = [
                 TimeDistributed_wrapper(dropout),
-                TimeDistributed_wrapper(nn.Linear(first_linear_dim, args.ffn_hidden_size))
+                TimeDistributed_wrapper(nn.Linear(first_linear_dim, args.ffn_hidden_size, bias=False))
             ]
             for _ in range(args.ffn_num_layers - 2):
                 ffn.extend([
                     TimeDistributed_wrapper(activation),
                     TimeDistributed_wrapper(dropout),
-                    TimeDistributed_wrapper(nn.Linear(args.ffn_hidden_size, args.ffn_hidden_size)),
+                    TimeDistributed_wrapper(nn.Linear(args.ffn_hidden_size, args.ffn_hidden_size, bias=False)),
                 ])
             ffn.extend([
                 TimeDistributed_wrapper(activation),
                 TimeDistributed_wrapper(dropout),
-                TimeDistributed_wrapper(nn.Linear(args.ffn_hidden_size, args.output_size)),
-                LambdaLayer(lambda x: torch.sum(x, 1))  # sum up each atom contribution, shape = (num_molecules, output_size)
+                TimeDistributed_wrapper(nn.Linear(args.ffn_hidden_size, args.output_size, bias=False)),
+                LambdaLayer(lambda x: torch.sum(x, 1))  
             ])
 
         # Create FFN model
@@ -88,7 +88,7 @@ class MoleculeModel(nn.Module):
         :return: The output of the MoleculeModel.
         """
         output = self.ffn(self.encoder(*input))
-
+        print(output)
         # Don't apply sigmoid during training b/c using BCEWithLogitsLoss
         if self.classification and not self.training:
             output = self.sigmoid(output)
@@ -127,6 +127,8 @@ class LambdaLayer(nn.Module):
     def forward(self, x):
         return self.lambda_function(x)
 
+'''
+# This cannot work.
 class TimeDistributed_wrapper(nn.Module):
     def __init__(self, working_layer):
         super(TimeDistributed_wrapper, self).__init__()
@@ -137,4 +139,28 @@ class TimeDistributed_wrapper(nn.Module):
             atom_vector = self.working_layer(atom_vector)
             final_mole_vector.append(atom_vector)
         return final_mole_vector
-        
+'''
+
+class TimeDistributed_wrapper(nn.Module):
+    def __init__(self, module, batch_first=False):
+        super(TimeDistributed_wrapper, self).__init__()
+        self.module = module
+        self.batch_first = batch_first
+
+    def forward(self, x):
+
+        if len(x.size()) <= 2:
+            return self.module(x)
+
+        # Squash samples and timesteps into a single axis
+        x_reshape = x.contiguous().view(-1, x.size(-1))  # (samples * timesteps, input_size)
+
+        y = self.module(x_reshape)
+
+        # We have to reshape Y
+        if self.batch_first:
+            y = y.contiguous().view(x.size(0), -1, y.size(-1))  # (samples, timesteps, output_size)
+        else:
+            y = y.view(-1, x.size(1), y.size(-1))  # (timesteps, samples, output_size)
+
+        return y
