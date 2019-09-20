@@ -58,6 +58,14 @@ class MPNEncoder(nn.Module):
         self.W_h = nn.Linear(w_h_input_size, self.hidden_size, bias=self.bias)
 
         self.W_o = nn.Linear(self.atom_fdim + self.hidden_size, self.hidden_size)
+    
+    # zero-padding tensor
+    def padding(self, mol_vector, padding_final_size=20):
+        num_atoms_index = mol_vector.shape[0]
+        num_features_index = mol_vector.shape[1]
+        padding_tensor = torch.zeros((padding_final_size, num_features_index))
+        padding_tensor[:num_atoms_index, :] = mol_vector
+        return padding_tensor
 
     def forward(self,
                 mol_graph: BatchMolGraph,
@@ -135,9 +143,11 @@ class MPNEncoder(nn.Module):
                 mol_vec = cur_hiddens  # (num_atoms, hidden_size)
 
                 # mol_vec = mol_vec.sum(dim=0) / a_size
-                # padding?
-                print('mol_vec_notsum'+'\n', mol_vec)  # check vector
-                print('mol_vec_shpae', mol_vec.shape)  #  check vector shape
+                
+                # padding
+                mol_vec = self.padding(mol_vec)
+                #print('mol_vec_notsum'+'\n', mol_vec)  # check vector
+                #print('mol_vec_shpae', mol_vec.shape)  #  check vector shape
                 mol_vecs.append(mol_vec) 
 
         mol_vecs = torch.stack(mol_vecs, dim=0)  # (num_molecules, num_atoms, hidden_size)
@@ -149,7 +159,8 @@ class MPNEncoder(nn.Module):
             mol_vecs = torch.cat([mol_vecs, features_batch], dim=1)  # (num_molecules, num_atoms,  hidden_size)
 
         return mol_vecs  # num_molecules x num_atoms x hidden
-
+    
+ 
 
 class MPN(nn.Module):
     """A message passing neural network for encoding a molecule."""

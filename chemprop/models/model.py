@@ -56,24 +56,24 @@ class MoleculeModel(nn.Module):
         # Create FFN layers
         if args.ffn_num_layers == 1:
             ffn = [
-                dropout,
-                nn.Linear(first_linear_dim, args.output_size)
+                TimeDistributed_wrapper(dropout),
+                TimeDistributed_wrapper(nn.Linear(first_linear_dim, args.output_size))
             ]
         else:
             ffn = [
-                dropout,
-                nn.Linear(first_linear_dim, args.ffn_hidden_size)
+                TimeDistributed_wrapper(dropout),
+                TimeDistributed_wrapper(nn.Linear(first_linear_dim, args.ffn_hidden_size))
             ]
             for _ in range(args.ffn_num_layers - 2):
                 ffn.extend([
-                    activation,
-                    dropout,
-                    nn.Linear(args.ffn_hidden_size, args.ffn_hidden_size),
+                    TimeDistributed_wrapper(activation),
+                    TimeDistributed_wrapper(dropout),
+                    TimeDistributed_wrapper(nn.Linear(args.ffn_hidden_size, args.ffn_hidden_size)),
                 ])
             ffn.extend([
-                activation,
-                dropout,
-                nn.Linear(args.ffn_hidden_size, args.output_size),
+                TimeDistributed_wrapper(activation),
+                TimeDistributed_wrapper(dropout),
+                TimeDistributed_wrapper(nn.Linear(args.ffn_hidden_size, args.output_size)),
                 LambdaLayer(lambda x: torch.sum(x, 1))  # sum up each atom contribution, shape = (num_molecules, output_size)
             ])
 
@@ -121,10 +121,20 @@ def build_model(args: Namespace) -> nn.Module:
     return model
 
 class LambdaLayer(nn.Module):
-    def __init__(self, lambd):
+    def __init__(self, lambda_function):
         super(LambdaLayer, self).__init__()
-        self.lambd = lambd
+        self.lambda_function = lambda_function
     def forward(self, x):
-        return self.lambd(x)
+        return self.lambda_function(x)
 
-
+class TimeDistributed_wrapper(nn.Module):
+    def __init__(self, working_layer):
+        super(TimeDistributed_wrapper, self).__init__()
+        self.working_layer = working_layer
+    def forward(self, mol_vector):
+        final_mole_vector = []
+        for atom_vector in mol_vector:
+            atom_vector = self.working_layer(atom_vector)
+            final_mole_vector.append(atom_vector)
+        return final_mole_vector
+        
