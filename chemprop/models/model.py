@@ -88,7 +88,7 @@ class MoleculeModel(nn.Module):
         :return: The output of the MoleculeModel.
         """
         output = self.ffn(self.encoder(*input))
-        print(output)
+        #print(output)
         # Don't apply sigmoid during training b/c using BCEWithLogitsLoss
         if self.classification and not self.training:
             output = self.sigmoid(output)
