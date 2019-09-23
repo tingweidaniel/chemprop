@@ -74,7 +74,7 @@ class MoleculeModel(nn.Module):
                 TimeDistributed_wrapper(activation),
                 TimeDistributed_wrapper(dropout),
                 TimeDistributed_wrapper(nn.Linear(args.ffn_hidden_size, args.output_size, bias=False)),
-                LambdaLayer(lambda x: torch.sum(x, 1))  
+#                LambdaLayer(lambda x: torch.sum(x, 1))  
             ])
 
         # Create FFN model
@@ -88,7 +88,7 @@ class MoleculeModel(nn.Module):
         :return: The output of the MoleculeModel.
         """
         output = self.ffn(self.encoder(*input))
-        #print(output)
+        print('FF output:' + '\n', output)
         # Don't apply sigmoid during training b/c using BCEWithLogitsLoss
         if self.classification and not self.training:
             output = self.sigmoid(output)

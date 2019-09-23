@@ -178,3 +178,17 @@ Ensemble test rmse = nan
 1-fold cross validation
 Seed 0 ==> test rmse = nan
 Overall test rmse = nan +/- nan
+Fold 0
+Model 0 best validation rmse = 65.710674 on epoch 1
+Model 0 test rmse = nan
+Ensemble test rmse = nan
+1-fold cross validation
+Seed 0 ==> test rmse = nan
+Overall test rmse = nan +/- nan
+Fold 0
+Model 0 best validation rmse = 71.342779 on epoch 0
+Model 0 test rmse = nan
+Ensemble test rmse = nan
+1-fold cross validation
+Seed 0 ==> test rmse = nan
+Overall test rmse = nan +/- nan

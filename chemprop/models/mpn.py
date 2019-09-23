@@ -146,8 +146,8 @@ class MPNEncoder(nn.Module):
                 
                 # padding
                 mol_vec = self.padding(mol_vec)
-                #print('mol_vec_notsum'+'\n', mol_vec)  # check vector
-                #print('mol_vec_shpae', mol_vec.shape)  #  check vector shape
+                print('mol_vec_notsum'+'\n', mol_vec)  # check vector
+                print('mol_vec_shpae', mol_vec.shape)  #  check vector shape
                 mol_vecs.append(mol_vec) 
 
         mol_vecs = torch.stack(mol_vecs, dim=0)  # (num_molecules, num_atoms, hidden_size)
