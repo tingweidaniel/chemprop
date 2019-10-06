@@ -142,12 +142,12 @@ class MPNEncoder(nn.Module):
                 cur_hiddens = atom_hiddens.narrow(0, a_start, a_size)
                 mol_vec = cur_hiddens  # (num_atoms, hidden_size)
 
-                # mol_vec = mol_vec.sum(dim=0) / a_size
+                # mol_vec = mol_vec.sum(dim=0) / a_size  
                 
                 # padding
                 mol_vec = self.padding(mol_vec)
-                print('mol_vec_notsum'+'\n', mol_vec)  # check vector
-                print('mol_vec_shpae', mol_vec.shape)  #  check vector shape
+                #print('mol_vec_notsum'+'\n', mol_vec)  # check vector
+                #print('mol_vec_shpae', mol_vec.shape)  #  check vector shape
                 mol_vecs.append(mol_vec) 
 
         mol_vecs = torch.stack(mol_vecs, dim=0)  # (num_molecules, num_atoms, hidden_size)
