@@ -1,0 +1,7 @@
+Fold 0
+Model 0 best validation rmse = 3.087401 on epoch 263
+Model 0 test rmse = 15.348909
+Ensemble test rmse = 15.348909
+1-fold cross validation
+Seed 0 ==> test rmse = 15.348909
+Overall test rmse = 15.348909 +/- 0.000000
