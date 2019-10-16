@@ -9,7 +9,7 @@ MAX_ATOMIC_NUM = 100
 ATOM_FEATURES = {
     'atomic_num': list(range(MAX_ATOMIC_NUM)),
     'degree': [0, 1, 2, 3, 4, 5],
-    # 'formal_charge': [-1, -2, 1, 2, 0],
+    'formal_charge': [-1, -2, 1, 2, 0],
     'chiral_tag': [0, 1, 2, 3],
     'num_Hs': [0, 1, 2, 3, 4],
     'hybridization': [
@@ -27,8 +27,8 @@ THREE_D_DISTANCE_MAX = 20
 THREE_D_DISTANCE_STEP = 1
 THREE_D_DISTANCE_BINS = list(range(0, THREE_D_DISTANCE_MAX + 1, THREE_D_DISTANCE_STEP))
 
-# len(choices) + 1 to include room for uncommon values; + 2 at end for IsAromatic and mass
-ATOM_FDIM = sum(len(choices) + 1 for choices in ATOM_FEATURES.values()) + 2 
+# len(choices) + 1 to include room for uncommon values; + 2 at end for IsAromatic and mass ; + 1 for is_zwitterion
+ATOM_FDIM = sum(len(choices) + 1 for choices in ATOM_FEATURES.values()) + 2
 BOND_FDIM = 14 - 4  # remove the bond type features [S, D, T, B]
 
 # Memoization
@@ -75,7 +75,7 @@ def onek_encoding_unk(value: int, choices: List[int]) -> List[int]:
     return encoding
 
 
-def atom_features(atom: Chem.rdchem.Atom, functional_groups: List[int] = None) -> List[Union[bool, int, float]]:
+def atom_features(atom: Chem.rdchem.Atom, mol: Chem.rdchem.Mol = None, functional_groups: List[int] = None) -> List[Union[bool, int, float]]:
     """
     Builds a feature vector for an atom.
 
@@ -85,6 +85,7 @@ def atom_features(atom: Chem.rdchem.Atom, functional_groups: List[int] = None) -
     """
     features = onek_encoding_unk(atom.GetAtomicNum() - 1, ATOM_FEATURES['atomic_num']) + \
            onek_encoding_unk(atom.GetTotalDegree(), ATOM_FEATURES['degree']) + \
+           onek_encoding_unk(atom.GetFormalCharge(), ATOM_FEATURES['formal_charge']) + \
            onek_encoding_unk(int(atom.GetChiralTag()), ATOM_FEATURES['chiral_tag']) + \
            onek_encoding_unk(int(atom.GetTotalNumHs()), ATOM_FEATURES['num_Hs']) + \
            onek_encoding_unk(int(atom.GetHybridization()), ATOM_FEATURES['hybridization']) + \
@@ -92,6 +93,8 @@ def atom_features(atom: Chem.rdchem.Atom, functional_groups: List[int] = None) -
            [atom.GetMass() * 0.01]  # scaled to about the same range as other features
     if functional_groups is not None:
         features += functional_groups
+#    if mol is not None:
+#        features += is_zwitterion(mol)
     return features
 
 
@@ -158,7 +161,7 @@ class MolGraph:
         
         # Get atom features
         for i, atom in enumerate(mol.GetAtoms()):
-            self.f_atoms.append(atom_features(atom))
+            self.f_atoms.append(atom_features(atom, mol=mol))
         self.f_atoms = [self.f_atoms[i] for i in range(self.n_atoms)]
 
         for _ in range(self.n_atoms):
@@ -316,3 +319,13 @@ def mol2graph(smiles_batch: List[str],
         mol_graphs.append(mol_graph)
     
     return BatchMolGraph(mol_graphs, args)
+
+
+def is_zwitterion(mol: Chem.rdchem.Mol):
+    zwitterion = 0
+    for atom in mol.GetAtoms():
+       if atom.GetFormalCharge() !=0:
+           zwitterion = 1
+           break
+       
+    return [zwitterion]
