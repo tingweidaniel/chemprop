@@ -9,7 +9,6 @@ MAX_ATOMIC_NUM = 100
 ATOM_FEATURES = {
     'atomic_num': list(range(MAX_ATOMIC_NUM)),
     'degree': [0, 1, 2, 3, 4, 5],
-    'formal_charge': [-1, -2, 1, 2, 0],
     'chiral_tag': [0, 1, 2, 3],
     'num_Hs': [0, 1, 2, 3, 4],
     'hybridization': [
@@ -27,9 +26,12 @@ THREE_D_DISTANCE_MAX = 20
 THREE_D_DISTANCE_STEP = 1
 THREE_D_DISTANCE_BINS = list(range(0, THREE_D_DISTANCE_MAX + 1, THREE_D_DISTANCE_STEP))
 
-# len(choices) + 1 to include room for uncommon values; + 2 at end for IsAromatic and mass ; + 1 for is_zwitterion
-ATOM_FDIM = sum(len(choices) + 1 for choices in ATOM_FEATURES.values()) + 2
-BOND_FDIM = 14 - 4  # remove the bond type features [S, D, T, B]
+# len(choices) + 1 to include room for uncommon values; + 2 for IsAromatic and mass ; + 1 for is_zwitterion
+# + 1 for whether the atom is in ring ; + 7 for whether the atom is in [3, 4, 5, 6, 7, 8] member rings or not
+# + 3 for is_hetroatomic_cyclic  
+ATOM_FDIM = sum(len(choices) + 1 for choices in ATOM_FEATURES.values()) + 2 + 1 + 1 + 7 # + 3
+# - 4 for remove the bond type features [S, D, T, B] ; + 1 for is aromatic ; + 7 for whether the bond is in [3, 4, 5, 6, 7, 8] member rings
+BOND_FDIM = 14 - 4 + 1 # + 7  
 
 # Memoization
 SMILES_TO_GRAPH = {}
@@ -85,16 +87,18 @@ def atom_features(atom: Chem.rdchem.Atom, mol: Chem.rdchem.Mol = None, functiona
     """
     features = onek_encoding_unk(atom.GetAtomicNum() - 1, ATOM_FEATURES['atomic_num']) + \
            onek_encoding_unk(atom.GetTotalDegree(), ATOM_FEATURES['degree']) + \
-           onek_encoding_unk(atom.GetFormalCharge(), ATOM_FEATURES['formal_charge']) + \
            onek_encoding_unk(int(atom.GetChiralTag()), ATOM_FEATURES['chiral_tag']) + \
            onek_encoding_unk(int(atom.GetTotalNumHs()), ATOM_FEATURES['num_Hs']) + \
            onek_encoding_unk(int(atom.GetHybridization()), ATOM_FEATURES['hybridization']) + \
            [1 if atom.GetIsAromatic() else 0] + \
+           [1 if atom.IsInRing() else 0] + \
+           atom_in_member_rings(atom) + \
            [atom.GetMass() * 0.01]  # scaled to about the same range as other features
     if functional_groups is not None:
         features += functional_groups
-#    if mol is not None:
-#        features += is_zwitterion(mol)
+    if mol is not None:
+        features += is_zwitterion(mol)
+        # features += is_hetroatomic_cyclic(mol)
     return features
 
 
@@ -118,7 +122,9 @@ def bond_features(bond: Chem.rdchem.Bond) -> List[Union[bool, int, float]]:
             (bond.GetIsConjugated() if bt is not None else 0),
             (bond.IsInRing() if bt is not None else 0)
         ]
+        fbond += [1 if bond.GetIsAromatic() else 0]
         fbond += onek_encoding_unk(int(bond.GetStereo()), list(range(6)))
+        # fbond += bond_in_member_rings(bond)
     return fbond
 
 
@@ -322,6 +328,9 @@ def mol2graph(smiles_batch: List[str],
 
 
 def is_zwitterion(mol: Chem.rdchem.Mol):
+    """
+    To identify whether the molecule is zwitterion or not 
+    """
     zwitterion = 0
     for atom in mol.GetAtoms():
        if atom.GetFormalCharge() !=0:
@@ -329,3 +338,58 @@ def is_zwitterion(mol: Chem.rdchem.Mol):
            break
        
     return [zwitterion]
+
+
+def atom_in_member_rings(atom: Chem.rdchem.Atom):
+    """
+    Show each atom of the molecule is involved in 3, 4, 5, 6, 7, 8 member rings
+    """
+    vector = [0]*7  # If value is not in the [3, 4, 5, 6, 7, 8], then the final element in the vector is 1.
+    for index, member_ring in enumerate(range(3, 9)):
+        if atom.IsInRingSize(member_ring):
+            vector[index] = 1
+    
+    if vector == [0]*7:
+        vector[-1] = 1
+    
+    return vector
+
+'''
+def bond_in_member_rings(bond: Chem.rdchem.Bond):
+    """
+    Show each bond of the molecule is involved in 3, 4, 5, 6, 7, 8 member rings
+    """
+    vector = [0]*7  # If value is not in the [3, 4, 5, 6, 7, 8], then the final element in the vector is 1.
+    for index, member_ring in enumerate(range(3, 9)):
+        if bond.IsInRingSize(member_ring):
+            vector[index] = 1
+    
+    if vector == [0]*7:
+        vector[-1] = 1
+    
+    return vector
+
+
+def is_hetroatomic_cyclic(mol: Chem.rdchem.Mol):
+    """
+    Show whether molecule with ring structure is C-only cyclic or not
+    """
+    vector = [0]*3  # [N involve, O involve, C-only]
+    member_ring = 0
+    C_in_ring_count = 0
+
+    for atom in mol.GetAtoms():
+        if atom.IsInRing():
+            member_ring += 1
+            if atom.GetAtomicNum() == 7:
+                vector[0] = 1
+            if atom.GetAtomicNum() == 8:
+                vector[1] = 1
+            if atom.GetAtomicNum() == 6:
+                C_in_ring_count += 1
+    
+    if member_ring == C_in_ring_count and member_ring != 0:
+        vector[2] = 1
+    
+    return vector
+'''
