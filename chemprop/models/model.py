@@ -88,7 +88,10 @@ class MoleculeModel(nn.Module):
         :return: The output of the MoleculeModel.
         """
         output = self.ffn(self.encoder(*input))
+<<<<<<< HEAD
         # print('FF output:' + '\n', output)
+=======
+>>>>>>> 80706a6b43ef647e4ce1ee6eb02f29f00057dbff
         # Don't apply sigmoid during training b/c using BCEWithLogitsLoss
         if self.classification and not self.training:
             output = self.sigmoid(output)
@@ -126,20 +129,7 @@ class LambdaLayer(nn.Module):
         self.lambda_function = lambda_function
     def forward(self, x):
         return self.lambda_function(x)
-
-'''
-# This cannot work.
-class TimeDistributed_wrapper(nn.Module):
-    def __init__(self, working_layer):
-        super(TimeDistributed_wrapper, self).__init__()
-        self.working_layer = working_layer
-    def forward(self, mol_vector):
-        final_mole_vector = []
-        for atom_vector in mol_vector:
-            atom_vector = self.working_layer(atom_vector)
-            final_mole_vector.append(atom_vector)
-        return final_mole_vector
-'''
+    
 
 class TimeDistributed_wrapper(nn.Module):
     def __init__(self, module, batch_first=False):
