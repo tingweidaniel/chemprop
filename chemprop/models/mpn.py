@@ -141,11 +141,6 @@ class MPNEncoder(nn.Module):
             else:
                 cur_hiddens = atom_hiddens.narrow(0, a_start, a_size)
                 mol_vec = cur_hiddens  # (num_atoms, hidden_size)
-<<<<<<< HEAD
-
-                # mol_vec = mol_vec.sum(dim=0) / a_size  
-=======
->>>>>>> 80706a6b43ef647e4ce1ee6eb02f29f00057dbff
                 
                 # padding
                 mol_vec = self.padding(mol_vec)

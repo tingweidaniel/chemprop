@@ -119,7 +119,7 @@ def run_training(args: Namespace, logger: Logger = None) -> List[float]:
           f'train size = {len(train_data):,} | val size = {len(val_data):,} | test size = {len(test_data):,}')
 
     # Initialize scaler and scale training targets by subtracting mean and dividing standard deviation (regression only)
-    if args.dataset_type == 'regression':
+    if args.dataset_type == 'regression' and args.training_loss_func_RMSE == 'False':  # add args.training_loss_func_RMSE == 'False'
         debug('Fitting scaler')
         train_smiles, train_targets = train_data.smiles(), train_data.targets()
         scaler = StandardScaler().fit(train_targets)
