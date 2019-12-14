@@ -134,9 +134,6 @@ def add_train_args(parser: ArgumentParser):
     parser.add_argument('--config_path', type=str,
                         help='Path to a .json file containing arguments. Any arguments present in the config'
                              'file will override arguments specified via the command line or by the defaults.')
-    parser.add_argument('--training_loss_func_RMSE', type=bool, default=False,
-                        help='Use the criterion of RMSE for loss function when training the model.'
-                             'If False, use MSE (default).' )
 
     # Training arguments
     parser.add_argument('--epochs', type=int, default=30,

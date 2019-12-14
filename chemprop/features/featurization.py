@@ -3,6 +3,7 @@ from typing import List, Tuple, Union
 
 from rdkit import Chem
 import torch
+from rmgpy.molecule import Molecule
 
 # Atom feature sizes
 MAX_ATOMIC_NUM = 100
@@ -27,10 +28,10 @@ THREE_D_DISTANCE_STEP = 1
 THREE_D_DISTANCE_BINS = list(range(0, THREE_D_DISTANCE_MAX + 1, THREE_D_DISTANCE_STEP))
 
 # len(choices) + 1 to include room for uncommon values; + 2 for IsAromatic and mass ; + 1 for is_zwitterion
-# + 1 for whether the atom is in ring ; + 7 for whether the atom is in [3, 4, 5, 6, 7, 8] member rings or not
+# + 1 for whether the atom is in ring ; + 7 for whether the atom is in [3, 4, 5, 6, 7, 8, none] member rings or not
 # + 3 for is_hetroatomic_cyclic  
-ATOM_FDIM = sum(len(choices) + 1 for choices in ATOM_FEATURES.values()) + 2 + 1 + 1 + 7 # + 3
-# - 4 for remove the bond type features [S, D, T, B] ; + 1 for is aromatic ; + 7 for whether the bond is in [3, 4, 5, 6, 7, 8] member rings
+ATOM_FDIM = sum(len(choices) + 1 for choices in ATOM_FEATURES.values()) + 2 + 1 + 1 + 7 -1 # + 3  # -1 for [3, 4, 5, 6, 7, 8, none] to [3, 4, 5, 6, 7, 8]
+# - 4 for remove the bond type features [S, D, T, B] ; + 1 for is aromatic ; + 7 for whether the bond is in [3, 4, 5, 6, 7, 8, none] member rings
 BOND_FDIM = 14 - 4 + 1 # + 7  
 
 # Memoization
@@ -77,7 +78,7 @@ def onek_encoding_unk(value: int, choices: List[int]) -> List[int]:
     return encoding
 
 
-def atom_features(atom: Chem.rdchem.Atom, mol: Chem.rdchem.Mol = None, functional_groups: List[int] = None) -> List[Union[bool, int, float]]:
+def atom_features(atom: Chem.rdchem.Atom, mol: Chem.rdchem.Mol = None, rmg_mol = None, rmg_atom = None, functional_groups: List[int] = None) -> List[Union[bool, int, float]]:
     """
     Builds a feature vector for an atom.
 
@@ -92,7 +93,7 @@ def atom_features(atom: Chem.rdchem.Atom, mol: Chem.rdchem.Mol = None, functiona
            onek_encoding_unk(int(atom.GetHybridization()), ATOM_FEATURES['hybridization']) + \
            [1 if atom.GetIsAromatic() else 0] + \
            [1 if atom.IsInRing() else 0] + \
-           atom_in_member_rings(atom) + \
+           atom_in_member_rings(rmg_mol, rmg_atom) + \
            [atom.GetMass() * 0.01]  # scaled to about the same range as other features
     if functional_groups is not None:
         features += functional_groups
@@ -161,13 +162,15 @@ class MolGraph:
 
         # Convert smiles to molecule
         mol = Chem.MolFromSmiles(smiles)
+        rmg_mol = Molecule().from_smiles(smiles)
+        rmg_atoms = rmg_mol.atoms
 
         # fake the number of "atoms" if we are collapsing substructures
         self.n_atoms = mol.GetNumAtoms()
         
         # Get atom features
         for i, atom in enumerate(mol.GetAtoms()):
-            self.f_atoms.append(atom_features(atom, mol=mol))
+            self.f_atoms.append(atom_features(atom, mol=mol, rmg_mol=rmg_mol, rmg_atom=rmg_atoms[i]))
         self.f_atoms = [self.f_atoms[i] for i in range(self.n_atoms)]
 
         for _ in range(self.n_atoms):
@@ -339,20 +342,52 @@ def is_zwitterion(mol: Chem.rdchem.Mol):
        
     return [zwitterion]
 
-
+'''
 def atom_in_member_rings(atom: Chem.rdchem.Atom):
     """
+    Version 1.0
     Show each atom of the molecule is involved in 3, 4, 5, 6, 7, 8 member rings
     """
     vector = [0]*7  # If value is not in the [3, 4, 5, 6, 7, 8], then the final element in the vector is 1.
+    bonds = atom.GetBonds()
+
     for index, member_ring in enumerate(range(3, 9)):
+        count = 0
         if atom.IsInRingSize(member_ring):
             vector[index] = 1
-    
+        for bond in bonds:
+            if bond.IsInRingSize(member_ring):
+                count += 1
+        if count > 2:
+            vector[index] = 2
+
     if vector == [0]*7:
         vector[-1] = 1
     
     return vector
+'''
+
+
+def atom_in_member_rings(rmg_mol, rmg_atom):
+    """
+    From dde.  https://github.com/tingweidaniel/DataDrivenEstimator/blob/atomic_fp/dde/molecule_tensor.py
+    Given an atom and the molecule it belongs to
+    return a list of counts, each count shows
+    the occurances of the atom is involved in
+    3, 4, 5, 6, 7, 8-member rings
+    For instance, atom is in one 3-member ring and two
+    5-member rings, the returned list would be
+    [1, 0, 2, 0, 0, 0]
+    """
+    SSSR = rmg_mol.get_deterministic_sssr()
+    atom_in_rings = [0]*6
+    for ring in SSSR:
+        if rmg_atom in ring:
+            idx = min(len(ring) - 3, 5)
+            atom_in_rings[idx] = atom_in_rings[idx] + 1
+
+    return atom_in_rings
+
 
 '''
 def bond_in_member_rings(bond: Chem.rdchem.Bond):

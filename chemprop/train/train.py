@@ -56,7 +56,7 @@ def train(model: nn.Module,
         batch = smiles_batch
         mask = torch.Tensor([[x is not None for x in tb] for tb in target_batch])
         targets = torch.Tensor([[0 if x is None else x for x in tb] for tb in target_batch])
-        print('targets_up', targets[0])
+        #print('targets_up', targets[0])
 
         if next(model.parameters()).is_cuda:
             mask, targets = mask.cuda(), targets.cuda()
@@ -75,11 +75,7 @@ def train(model: nn.Module,
             loss = torch.cat([loss_func(preds[:, target_index, :], targets[:, target_index]).unsqueeze(1) for target_index in range(preds.size(1))], dim=1) * class_weights * mask
         else:
             loss = loss_func(preds, targets) * class_weights * mask
-        
-        if args.training_loss_func_RMSE:
-            loss = loss.sum()
-        else:
-            loss = loss.sum() / mask.sum()
+        loss = loss.sum() / mask.sum()
         
         loss_sum += loss.item()
         iter_count += len(mol_batch)
@@ -97,10 +93,7 @@ def train(model: nn.Module,
             lrs = scheduler.get_lr()
             pnorm = compute_pnorm(model)
             gnorm = compute_gnorm(model)
-            if args.training_loss_func_RMSE:
-                loss_avg = (loss_sum / iter_count)**(0.5)
-            else:
-                loss_avg = loss_sum / iter_count
+            loss_avg = loss_sum / iter_count
             loss_sum, iter_count = 0, 0
 
             lrs_str = ', '.join(f'lr_{i} = {lr:.4e}' for i, lr in enumerate(lrs))

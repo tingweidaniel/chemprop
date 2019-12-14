@@ -154,6 +154,9 @@ class MPNEncoder(nn.Module):
                 features_batch = features_batch.view([1,features_batch.shape[0]])
             mol_vecs = torch.cat([mol_vecs, features_batch], dim=1)  # (num_molecules, num_atoms,  hidden_size)
 
+        if self.args.cuda:
+            mol_vecs = mol_vecs.cuda()
+
         return mol_vecs  # num_molecules x num_atoms x hidden
     
  

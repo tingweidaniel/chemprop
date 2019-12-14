@@ -1,4 +1,4 @@
-python train.py --data_path dataset/134k_training_hv7_1_1.csv --dataset_type regression --save_dir result --split_sizes 0.9 0.1 0.0 --epochs 300
+python train.py --data_path /mnt/d/chemprop_data_result/dataset/134k_training_hv7_1_1.csv --dataset_type regression --save_dir test_result --split_sizes 0.9 0.1 0.0 --epochs 300
 
 
 
